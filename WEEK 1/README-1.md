@@ -325,13 +325,160 @@ This instruction decreases the stack pointer by 16 bytes — typical in function
 ![image](https://github.com/user-attachments/assets/c42e7a2c-c98d-4b18-8d01-e605a29cbd62)
 
 
-# 5) 🔧 From C to Assembly (Function Prologue/Epilogue)
+# 5) 🧾 RISC-V RV32I Register ABI & Calling Convention Cheat-Sheet
+
+This task lists all **32 general-purpose registers** in the **RV32I** architecture, their **ABI names**, and their **function in the calling convention**.
+
+## 🗃️ Register Table (x0–x31)
+
+| Register | ABI Name | Role / Description                            |
+| -------- | -------- | --------------------------------------------- |
+| x0       | zero     | Constant zero                                 |
+| x1       | ra       | Return address (caller-saved)                 |
+| x2       | sp       | Stack pointer                                 |
+| x3       | gp       | Global pointer                                |
+| x4       | tp       | Thread pointer                                |
+| x5       | t0       | Temporary (caller-saved)                      |
+| x6       | t1       | Temporary (caller-saved)                      |
+| x7       | t2       | Temporary (caller-saved)                      |
+| x8       | s0/fp    | Saved register / Frame pointer (callee-saved) |
+| x9       | s1       | Saved register (callee-saved)                 |
+| x10      | a0       | Argument 0 / Return value 0 (caller-saved)    |
+| x11      | a1       | Argument 1 / Return value 1 (caller-saved)    |
+| x12      | a2       | Argument 2 (caller-saved)                     |
+| x13      | a3       | Argument 3 (caller-saved)                     |
+| x14      | a4       | Argument 4 (caller-saved)                     |
+| x15      | a5       | Argument 5 (caller-saved)                     |
+| x16      | a6       | Argument 6 (caller-saved)                     |
+| x17      | a7       | Argument 7 (caller-saved)                     |
+| x18      | s2       | Saved register (callee-saved)                 |
+| x19      | s3       | Saved register (callee-saved)                 |
+| x20      | s4       | Saved register (callee-saved)                 |
+| x21      | s5       | Saved register (callee-saved)                 |
+| x22      | s6       | Saved register (callee-saved)                 |
+| x23      | s7       | Saved register (callee-saved)                 |
+| x24      | s8       | Saved register (callee-saved)                 |
+| x25      | s9       | Saved register (callee-saved)                 |
+| x26      | s10      | Saved register (callee-saved)                 |
+| x27      | s11      | Saved register (callee-saved)                 |
+| x28      | t3       | Temporary (caller-saved)                      |
+| x29      | t4       | Temporary (caller-saved)                      |
+| x30      | t5       | Temporary (caller-saved)                      |
+| x31      | t6       | Temporary (caller-saved)                      |
+
+---
+
+## 📋 RISC-V Calling Convention Summary
+
+| ABI Group | Registers      | Description                        |
+| --------- | -------------- | ---------------------------------- |
+| `zero`    | x0             | Always 0 — hardwired               |
+| `ra`      | x1             | Return address — caller saves      |
+| `sp`      | x2             | Stack pointer                      |
+| `gp/tp`   | x3, x4         | Global/thread pointer              |
+| `a0–a7`   | x10–x17        | Function arguments / return values |
+| `t0–t6`   | x5–x7, x28–x31 | Temporaries — **caller-saved**     |
+| `s0–s11`  | x8–x9, x18–x27 | Saved registers — **callee-saved** |
+
+---
+
+## 🧠 Quick Tip
+
+* **Caller-saved**: Must be saved **by the caller** before calling another function if they’re needed after the call.
+* **Callee-saved**: Must be preserved **by the callee** if it uses them.
+
+
+# 6) 🐞 Stepping Through RISC-V ELF with GDB
 <details>
   <summary> <b> 🔍 Documentation </b> </summary>
 <p>
 
+This task demonstrates how to debug a cross-compiled RISC-V ELF file using the built-in **GDB simulator**, set breakpoints, step through code, and inspect registers.
 
+---
+
+## 📂 Prerequisites
+
+* Ensure `hello.elf` is compiled with debug info:
+
+```bash
+riscv64-unknown-elf-gcc -g -march=rv32imc -mabi=ilp32 -o hello.elf hello.c
+```
+
+---
+
+## 🧪 Step-by-Step Debugging with GDB
+
+### 1️⃣ Launch GDB on the ELF file
+
+```bash
+riscv64-unknown-elf-gdb hello.elf
+```
+
+### 2️⃣ In GDB, connect to the built-in simulator
+
+```
+(gdb) target sim
+```
+
+### 3️⃣ Set a breakpoint at `main`
+
+```
+(gdb) break main
+```
+
+Output should say:
+`Breakpoint 1 at 0x...: file hello.c, line 3.`
+
+### 4️⃣ Start program execution
+
+```
+(gdb) run
+```
+
+The program stops at the start of `main`.
+
+### 5️⃣ Step through instructions
+
+```bash
+(gdb) step       # Step into function
+(gdb) next       # Step over lines
+(gdb) disassemble
+```
+
+### 6️⃣ Inspect register values
+
+```bash
+(gdb) info registers
+(gdb) info reg a0
+```
+
+This shows the current values of general-purpose and argument registers.
+
+---
+
+## 🧠 Useful GDB Commands Summary
+
+| Command         | Description                        |
+| --------------- | ---------------------------------- |
+| `target sim`    | Use the GDB simulator backend      |
+| `break main`    | Set a breakpoint at `main()`       |
+| `run`           | Start the program                  |
+| `step` / `next` | Step into / step over instructions |
+| `info reg`      | Display all register values        |
+| `info reg a0`   | Show just the `a0` register        |
+| `disassemble`   | Show disassembled code around PC   |
+| `x/i $pc`       | Examine current instruction        |
+
+---
 
 </p></details>
 
-## Outputs (task 5):
+## Outputs (task 6):
+![image](https://github.com/user-attachments/assets/2bb47397-d073-42c7-a15c-86ed116f2f0b)
+![image](https://github.com/user-attachments/assets/af9289c6-f405-4397-95c7-e50f713ec1c6)
+![image](https://github.com/user-attachments/assets/cb75a31b-930d-44e5-b323-80b629314cec)
+![image](https://github.com/user-attachments/assets/0e870432-9d2a-46ca-bd1e-cf8606ee9390)
+
+
+
