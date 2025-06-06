@@ -1,7 +1,9 @@
 # WEEK 1 tasks
-# 1) 🛠️ Setting Up RISC-V Toolchain (GCC 10.2.0) on Ubuntu
+# 1) 🛠️ Setting Up RISC-V Toolchain on Ubuntu
+<details>
+  <summary> Documentation </summary>
 
-This guide walks through the unpacking, setup, and verification of the `riscv64-unknown-elf-toolchain-10.2.0-2020.12.8-x86_64-linux-ubuntu14.tar.gz`.
+<p> This guide walks through the unpacking, setup, and verification of the `riscv64-unknown-elf-toolchain-10.2.0-2020.12.8-x86_64-linux-ubuntu14.tar.gz`.
 
 ---
 
@@ -74,5 +76,7 @@ Each command should output version info similar to:
 ```bash
 riscv64-unknown-elf-gcc (GCC) 10.2.0
 ```
-## OUTPUT:
+</p>
+</details>
 
+### Outputs (task 1):
