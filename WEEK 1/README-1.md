@@ -543,7 +543,7 @@ Add UART initialization for actual outputs
 
 ---
 
-### 📄 Source Code (`hello2.c`)
+### 📄 Source Code (`hello4.c`)
 
 ```c
 #define UART0 0x10000000
@@ -570,7 +570,7 @@ void _start() {
 ### 🧵 Step 1: Compile with No Optimization (`-O0`)
 
 ```bash
-riscv64-unknown-elf-gcc -S -O0 -march=rv32imc -mabi=ilp32 hello2.c -o hello2_O0.s
+riscv64-unknown-elf-gcc -S -O0 -march=rv32imc -mabi=ilp32 hello4.c -o hello4_O0.s
 ```
 
 > 🔍 This generates verbose, unoptimized assembly. Easy to read, but includes redundant code.
@@ -580,7 +580,7 @@ riscv64-unknown-elf-gcc -S -O0 -march=rv32imc -mabi=ilp32 hello2.c -o hello2_O0.
 ### ⚡ Step 2: Compile with Optimization (`-O2`)
 
 ```bash
-riscv64-unknown-elf-gcc -S -O2 -march=rv32imc -mabi=ilp32 hello2.c -o hello2_O2.s
+riscv64-unknown-elf-gcc -S -O2 -march=rv32imc -mabi=ilp32 hello4.c -o hello4_O2.s
 ```
 
 > 🔍 This generates highly optimized assembly: fewer instructions, more registers, tighter loops.
@@ -589,7 +589,7 @@ riscv64-unknown-elf-gcc -S -O2 -march=rv32imc -mabi=ilp32 hello2.c -o hello2_O2.
 
 ### 🧠 Step 3: Compare Both `.s` Files
 
-#### Example: `hello2_O0.s` (Excerpt)
+#### Example: `hello4_O0.s` (Excerpt)
 
 ```asm
 _start:
@@ -600,7 +600,7 @@ _start:
     ...
 ```
 
-#### Example: `hello2_O2.s` (Excerpt)
+#### Example: `hello4_O2.s` (Excerpt)
 
 ```asm
 _start:
