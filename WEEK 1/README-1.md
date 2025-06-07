@@ -529,5 +529,121 @@ Add UART initialization for actual outputs
 </p></details>
 
 ## Outputs (task 7):
+![image](https://github.com/user-attachments/assets/bf898e46-beac-4b9a-97c9-0ead38509812)
+
+
+# 8) 🧪 Exploring GCC Optimisation
+<details>
+  <summary> <b> 🔍 Documentation </b> </summary>
+<p>
+
+### ❓ Question
+
+**“Compile the same file with `-O0` vs `-O2`. What differences appear in the assembly and why?”**
+
+---
+
+### 📄 Source Code (`hello2.c`)
+
+```c
+#define UART0 0x10000000
+
+void uart_putc(char c) {
+    volatile char *tx = (char *)UART0;
+    *tx = c;
+}
+
+void uart_puts(const char *s) {
+    while (*s) {
+        uart_putc(*s++);
+    }
+}
+
+void _start() {
+    uart_puts("Hello, UART!\n");
+    while (1);
+}
+```
+
+---
+
+### 🧵 Step 1: Compile with No Optimization (`-O0`)
+
+```bash
+riscv64-unknown-elf-gcc -S -O0 -march=rv32imc -mabi=ilp32 hello2.c -o hello2_O0.s
+```
+
+> 🔍 This generates verbose, unoptimized assembly. Easy to read, but includes redundant code.
+
+---
+
+### ⚡ Step 2: Compile with Optimization (`-O2`)
+
+```bash
+riscv64-unknown-elf-gcc -S -O2 -march=rv32imc -mabi=ilp32 hello2.c -o hello2_O2.s
+```
+
+> 🔍 This generates highly optimized assembly: fewer instructions, more registers, tighter loops.
+
+---
+
+### 🧠 Step 3: Compare Both `.s` Files
+
+#### Example: `hello2_O0.s` (Excerpt)
+
+```asm
+_start:
+    addi    sp,sp,-16
+    sw      ra,12(sp)
+    ...
+    call    uart_puts
+    ...
+```
+
+#### Example: `hello2_O2.s` (Excerpt)
+
+```asm
+_start:
+    li      a5,268435456   # UART0
+    li      a4,72          # 'H'
+    sb      a4,0(a5)
+    ...
+```
+
+---
+
+### 🧠 Explanation of Differences
+
+| Optimization | Observed Change          | Explanation                                                               |
+| ------------ | ------------------------ | ------------------------------------------------------------------------- |
+| `-O0`        | Function calls preserved | GCC does not inline or optimize — keeps all calls literal.                |
+| `-O2`        | Functions inlined        | `uart_puts()` is inlined directly into `_start()` to avoid call overhead. |
+| `-O0`        | Stack frame setup        | Adds `sp` adjustments and saves registers regardless of need.             |
+| `-O2`        | No stack frame           | Skips unnecessary instructions if safe to do so.                          |
+| `-O2`        | Dead code removed        | GCC removes unused variables or unreachable code.                         |
+| `-O2`        | Register use optimized   | Efficient use of `a4`, `a5` instead of memory.                            |
+
+---
+
+
+> 📎 Include side-by-side screenshots or diffs of `hello2_O0.s` vs `hello2_O2.s`
+> Use `diff -u hello2_O0.s hello2_O2.s` for easy visual comparison.
+
+---
+
+### ✅ Conclusion
+
+Using `-O2` optimization results in **faster, smaller binaries** by:
+
+* Inlining functions like `uart_puts()`
+* Removing unused instructions
+* Avoiding unnecessary memory accesses or stack setup
+
+Use `-O0` when debugging, and `-O2` for production/bare-metal use.
+
+</p></details>
+
+## Outputs (task 8):
+
 
 
