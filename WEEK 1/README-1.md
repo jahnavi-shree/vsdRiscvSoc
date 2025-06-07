@@ -764,7 +764,7 @@ static inline uint32_t rdcycle(void) {
         :                     /* No clobbered registers */
     );
     return c;
-}
+
 ````
 
 ---
@@ -801,5 +801,87 @@ static inline uint32_t rdcycle(void) {
 </p></details>
 
 ## Outputs (task 9):
+![image](https://github.com/user-attachments/assets/bf64268c-a6ec-42e6-ab24-09a81e00f272)
 
+
+# 10) 🔌 Memory-Mapped I/O Demo — GPIO Toggle
+<details>
+  <summary> <b> 🔍 Documentation </b> </summary>
+<p>
+
+### ❓ Question
+**“Show a bare-metal C snippet to toggle a GPIO register located at `0x10012000`. How do I prevent the compiler from optimising the store away?”**
+
+---
+
+### 💻 Minimal C Code (Bare-metal GPIO Toggle)
+
+```c
+#include <stdint.h>
+
+int main() {
+    volatile uint32_t *gpio = (uint32_t*)0x10012000;
+    *gpio = 0x1;  // Write 1 to GPIO register
+    while (1);    // Prevent program from exiting
+    return 0;
+}
+````
+
+---
+
+### 📌 Explanation
+
+| Element                 | Purpose                                                                                                                  |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `volatile`              | Tells the compiler not to optimize this memory access. It assumes the memory might change or have hardware side effects. |
+| `(uint32_t*)0x10012000` | Casts the constant address to a pointer to a 32-bit unsigned integer.                                                    |
+| `*gpio = 0x1;`          | Dereferences the pointer and stores `1` into the memory-mapped register.                                                 |
+| `while (1);`            | Keeps the program running (infinite loop).                                                                               |
+
+---
+
+### 🧪 How to Check the Output
+
+Since this is **bare-metal** (no OS), you can **observe the register value or hardware effect** by one of these:
+
+1. **QEMU with UART or MMIO device** (if configured):
+
+   * QEMU alone won’t show changes unless a custom device or model is connected to `0x10012000`.
+   * You’d need to simulate with a memory-mapped peripheral using a device-tree or custom board.
+
+2. **Use GDB to Inspect Memory at Runtime**:
+
+   ```bash
+   riscv32-unknown-elf-gdb hello_gpio.elf
+   (gdb) target sim
+   (gdb) break main
+   (gdb) run
+   (gdb) x/x 0x10012000   # Examine the value at the GPIO address
+   ```
+
+3. **On Real Hardware**:
+
+   * Use a logic analyzer, serial output, or an LED connected to the GPIO pin.
+
+---
+
+### 🛠 Build Example
+
+```bash
+riscv64-unknown-elf-gcc -nostartfiles -march=rv32imc -mabi=ilp32 -T linker.ld -o hello_gpio.elf gpio.c
+```
+
+Make sure your `link.ld` script maps the `.text` section correctly and does not overlap with MMIO region.
+
+---
+
+### 📘 Notes
+
+* The **volatile** keyword is critical when accessing memory-mapped registers to ensure correctness.
+* You must ensure the address `0x10012000` is **word-aligned** (which it is) for 32-bit access.
+
+
+</p></details>
+
+## Outputs (task 10):
 
