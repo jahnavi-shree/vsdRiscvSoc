@@ -871,7 +871,7 @@ Since this is **bare-metal** (no OS), you can **observe the register value or ha
 riscv64-unknown-elf-gcc -nostartfiles -march=rv32imc -mabi=ilp32 -T linker.ld -o hello_gpio.elf gpio.c
 ```
 
-Make sure your `link.ld` script maps the `.text` section correctly and does not overlap with MMIO region.
+Make sure your `linker.ld` script maps the `.text` section correctly and does not overlap with MMIO region.
 
 ---
 
