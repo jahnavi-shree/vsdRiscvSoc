@@ -626,8 +626,8 @@ _start:
 ---
 
 
-> 📎 Include side-by-side screenshots or diffs of `hello2_O0.s` vs `hello2_O2.s`
-> Use `diff -u hello2_O0.s hello2_O2.s` for easy visual comparison.
+> 📎 Include side-by-side screenshots or diffs of `hello4_O0.s` vs `hello4_O2.s`
+> Use `diff -u hello4_O0.s hello4_O2.s` for easy visual comparison.
 
 ---
 
@@ -641,9 +641,165 @@ Using `-O2` optimization results in **faster, smaller binaries** by:
 
 Use `-O0` when debugging, and `-O2` for production/bare-metal use.
 
+Below is a detailed explanation of **Dead-Code Elimination**, **Register Allocation**, and **Inlining**
+
+---
+
+## 🔍 Compiler Optimizations Explained
+
+When compiling with optimization flags like `-O1`, `-O2`, or `-O3`, GCC performs several powerful transformations on your code. Here we explain three common techniques:
+
+---
+
+### 🗑️ 1. Dead-Code Elimination
+
+> **Definition**: Removing code that **does not affect** program output.
+
+#### ✅ Example (Removed Code)
+
+```c
+int x = 5;
+int y = 10;
+int z = x + y; // z is never used
+```
+
+GCC will eliminate `z`, and possibly `x` and `y`, because the result is never used.
+
+#### 💡 Why?
+
+* Saves space and runtime
+* No side effects — safe to delete
+
+---
+
+### 🧠 2. Register Allocation
+
+> **Definition**: Replacing memory access with **CPU registers** for faster execution.
+
+#### 🔁 Without Optimization (`-O0`)
+
+```asm
+lw a0,0(sp)
+sw a0,4(sp)
+```
+
+#### ⚡ With Optimization (`-O2`)
+
+```asm
+mv a1, a0
+```
+
+#### 💡 Why?
+
+* Registers are faster than RAM
+* Keeps values in CPU for reuse
+* Reduces memory traffic
+
+---
+
+### 📦 3. Inlining
+
+> **Definition**: Replacing a function call with its **actual body**, avoiding call overhead.
+
+#### ❌ Without Inlining
+
+```c
+uart_putc('A');  // Function call
+```
+
+```asm
+call uart_putc
+```
+
+#### ✅ With Inlining
+
+```asm
+li a0, 'A'
+sb a0, 0(a1)     // Direct write to UART memory
+```
+
+#### 💡 Why?
+
+* Speeds up small, frequently-used functions
+* Saves function-call overhead (like stack/return)
+* Enables further optimization inside the function body
+
+---
+
+### 📊 Summary Table
+
+| Optimization          | Benefit                                            | Risk/Tradeoff                    |
+| --------------------- | -------------------------------------------------- | -------------------------------- |
+| Dead-code Elimination | Smaller binary, faster execution                   | Might remove debugging variables |
+| Register Allocation   | Faster runtime, fewer loads/stores                 | Limited by number of registers   |
+| Inlining              | Removes call overhead, enables deeper optimization | Can increase code size           |
+
+---
+
+✅ These techniques combined make your **RISC-V ELF faster, tighter, and better** suited for bare-metal execution.
+
 </p></details>
 
 ## Outputs (task 8):
+![image](https://github.com/user-attachments/assets/80dc3a3c-d304-474e-90bb-f36433f7906e)
+![image](https://github.com/user-attachments/assets/74ed9179-6fc0-4e17-87de-12ce64435571)
 
+
+# 9) 🔧 Inline Assembly Basics
+<details>
+  <summary> <b> 🔍 Documentation </b> </summary>
+<p>
+
+### 📄 Source Code
+
+```c
+#include <stdint.h>
+
+static inline uint32_t rdcycle(void) {
+    uint32_t c;
+    asm volatile (
+        "csrr %0, cycle"      /* Read the 64‑bit cycle CSR into a 32‑bit register */
+        : "=r"(c)             /* Output operand: place the result in C variable 'c' */
+        :                     /* No input operands */
+        :                     /* No clobbered registers */
+    );
+    return c;
+}
+````
+
+---
+
+### 🧠 Explanation of Each Part
+
+| Syntax               | Meaning |
+| -------------------- | ------- |
+| `asm volatile (...)` |         |
+
+* **`asm`**: Insert inline assembly.
+* **`volatile`**: Prevents the compiler from optimizing away or reordering this asm block. Ensures it executes exactly where placed.
+  |
+  \| `"csrr %0, cycle"`       | The assembly instruction: read the **cycle** CSR (number 0xC00) into the register `%0`. |
+  \| `: "=r"(c)`              | **Output constraint**:
+* **`=`** marks it as write‑only.
+* **`r`** requests the compiler choose a general‑purpose register.
+* `(c)` binds that register to the C variable `c`.
+  |
+  \| *(empty)*                | **Input operands**: none needed here.                                    |
+  \| *(empty)*                | **Clobbers**: none declared (we only modify the output register).       |
+
+---
+
+### 📋 Quick Tips
+
+* **CSR names** (like `cycle`) are aliases for their numeric identifiers (0xC00) in RISC‑V’s assembler.
+* Always mark **hardware‑accessing asm** blocks as `volatile` so the compiler doesn’t remove or reorder them.
+* The **`r`** constraint is the most common: it lets the compiler pick any register.
+* If you needed multiple outputs or inputs, you’d list them as
+  `: "=r"(out1), "=r"(out2) : "r"(in1), "r"(in2) : "memory", "cc"`
+
+
+</p></details>
+
+## Outputs (task 9):
 
 
