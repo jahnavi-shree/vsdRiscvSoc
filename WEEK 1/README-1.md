@@ -481,4 +481,53 @@ This shows the current values of general-purpose and argument registers.
 ![image](https://github.com/user-attachments/assets/0e870432-9d2a-46ca-bd1e-cf8606ee9390)
 
 
+# 7) 🔧 Bare-Metal RISC-V on QEMU
+<details>
+  <summary> <b> 🔍 Documentation </b> </summary>
+<p>  
+
+Minimal example to verify a RISC-V bare-metal environment using QEMU.  
+
+## Code (`hello2.c`)  
+```c
+/* Minimal bare-metal RISC-V program */
+int main() {
+    while (1); // Infinite loop = success (no crash)
+    return 0;
+}
+```
+
+## Build & Run  
+### Compile  
+```bash
+riscv64-unknown-elf-gcc -march=rv32imac -mabi=ilp32 -nostdlib -o hello2.elf hello2.c
+```  
+- **`-nostdlib`**: No standard libraries (pure bare-metal).  
+- **`rv32imac`**: Targets 32-bit RISC-V with Multiply/Atomics/Compressed extensions.  
+
+### Run in QEMU  
+```bash
+qemu-system-riscv32 -nographic -machine sifive_e -kernel hello2.elf -bios none
+```  
+- **`-nographic`**: Output to terminal (no GUI).  
+- **`sifive_e`**: Emulates SiFive E-series board (RAM at `0x80000000`).  
+- **`-bios none`**: Skips firmware (executes `hello.elf` directly).  
+
+### Expected Behavior  
+- Silent infinite loop = ✅ Success (no crashes).  
+- **Exit QEMU**: Press `Ctrl+A`, then `X`.  
+
+## Why This Works  
+1. **No Dependencies**: `-nostdlib` avoids CRT startup code.  
+2. **Default RAM**: QEMU’s `sifive_e` machine pre-initializes memory.  
+3. **Entry Point**: QEMU jumps directly to `main()`.  
+
+---
+
+### Next Steps  
+Add UART initialization for actual outputs
+</p></details>
+
+## Outputs (task 7):
+
 
