@@ -1014,7 +1014,6 @@ Hello from crt0!
 Counter: 1
 ```
 
-````
 
 ---
 
@@ -1127,6 +1126,12 @@ SECTIONS {
     *(COMMON)
     __bss_end = .;
   }
+.stack (NOLOAD) : {
+    . = ALIGN(4);
+    _stack_top = . + 0x400;  /* 1KB stack */
+    PROVIDE(_stack_top = .);
+}
+
 }
 ```
 
@@ -1149,7 +1154,6 @@ clean:
 </p></details>
 
 ## Outputs (task 12):
-
-
+![image](https://github.com/user-attachments/assets/e75d8cd1-b099-4ded-8bb3-360806234e5e)
 
 
