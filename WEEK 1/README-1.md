@@ -885,3 +885,87 @@ Make sure your `linker.ld` script maps the `.text` section correctly and does no
 
 ## Outputs (task 10):
 
+
+# 11) 🔗 Linker Script 101 — RISC-V Bare-Metal (RV32IMC)
+<details>
+  <summary> <b> 🔍 Documentation </b> </summary>
+<p>
+To accompany a **minimal bare-metal project** on RV32IMC. It includes a simple linker script that places `.text` at `0x00000000` (Flash) and `.data` at `0x10000000` (SRAM), with a brief explanation of why those regions differ
+
+
+This project demonstrates how to use a minimal **linker script** to place different memory sections (`.text`, `.data`) at specific addresses on an RV32IMC target.
+
+---
+
+## 🧱 Memory Layout
+
+| Section  | Address      | Purpose           |
+|----------|--------------|-------------------|
+| `.text`  | `0x00000000` | Flash (code)      |
+| `.data`  | `0x10000000` | SRAM (initialized data) |
+
+---
+
+## 📄 Minimal Linker Script (`link.ld`)
+
+```ld
+ENTRY(_start)
+
+SECTIONS {
+  /* Code and read-only data */
+  .text 0x00000000 : {
+    *(.text*)
+    *(.rodata*)
+  }
+
+  /* Initialized data */
+  .data 0x10000000 : {
+    *(.data*)
+  }
+
+  /* Uninitialized data (BSS) */
+  .bss (NOLOAD) : {
+    *(.bss*)
+  }
+}
+````
+
+---
+
+## ⚙️ Build Example
+
+Assuming you have a `task11.c`, build it like this:
+
+```bash
+riscv64-unknown-elf-gcc -o prog.elf task11.c -nostartfiles -Wl,-Tlink.ld -march=rv32imc -mabi=ilp32
+```
+
+---
+
+## 🔍 Flash vs SRAM: Why Different?
+
+* **Flash (`0x00000000`)** is non-volatile memory used to store program code permanently.
+* **SRAM (`0x10000000`)** is fast, volatile memory used for variables during execution.
+* Separating code and data ensures:
+
+  * Faster access to variables (SRAM is faster than Flash)
+  * Write safety (Flash is often read-only during execution)
+  * Compatibility with embedded startup routines (copying `.data` from Flash to SRAM)
+
+---
+
+## 🧪 Running with QEMU (Optional)
+
+If simulating:
+
+```bash
+qemu-system-riscv32 -nographic -machine virt -kernel prog.elf
+```
+
+> Ensure your `.text` and `.data` regions match what the simulated SoC expects. You may need to adjust addresses or use a matching QEMU device like `virt`.
+
+</p></details>
+
+## Outputs (task 11):
+
+
