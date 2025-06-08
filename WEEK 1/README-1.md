@@ -801,7 +801,8 @@ static inline uint32_t rdcycle(void) {
 </p></details>
 
 ## Outputs (task 9):
-![image](https://github.com/user-attachments/assets/bf64268c-a6ec-42e6-ab24-09a81e00f272)
+![image](https://github.com/user-attachments/assets/68cd2cd7-eefc-41c0-b1f7-a91d1e1b8024)
+
 
 
 # 10) 🔌 Memory-Mapped I/O Demo — GPIO Toggle
@@ -809,71 +810,101 @@ static inline uint32_t rdcycle(void) {
   <summary> <b> 🔍 Documentation </b> </summary>
 <p>
 
-### ❓ Question
-**“Show a bare-metal C snippet to toggle a GPIO register located at `0x10012000`. How do I prevent the compiler from optimising the store away?”**
+This is a minimal bare-metal C snippet that toggles a GPIO register located at address `0x10012000`.
 
----
+## 📜 Description
 
-### 💻 Minimal C Code (Bare-metal GPIO Toggle)
+We write `0x1` to the memory-mapped GPIO register. The `volatile` keyword ensures the compiler does **not optimize away** this memory operation.
+
+## 📂 File Structure
+
+```
+
+.
+├── gpio\_toggle.c       # Main C file
+├── linker.ld           # Linker script
+└── Makefile            # Build file (for riscv32 GCC)
+
+````
+
+## 🧠 Code Explanation
 
 ```c
+// gpio_toggle.c
 #include <stdint.h>
 
+#define GPIO_ADDR 0x10012000
+
 int main() {
-    volatile uint32_t *gpio = (uint32_t*)0x10012000;
+    volatile uint32_t *gpio = (uint32_t *)GPIO_ADDR;
     *gpio = 0x1;  // Write 1 to GPIO register
-    while (1);    // Prevent program from exiting
+    while (1);    // Infinite loop to keep program alive
     return 0;
 }
 ````
 
----
+* `volatile` prevents compiler optimization of the memory store.
+* `uint32_t*` is used to match the alignment (4 bytes).
 
-### 📌 Explanation
+## 🧩 Linker Script
 
-| Element                 | Purpose                                                                                                                  |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `volatile`              | Tells the compiler not to optimize this memory access. It assumes the memory might change or have hardware side effects. |
-| `(uint32_t*)0x10012000` | Casts the constant address to a pointer to a 32-bit unsigned integer.                                                    |
-| `*gpio = 0x1;`          | Dereferences the pointer and stores `1` into the memory-mapped register.                                                 |
-| `while (1);`            | Keeps the program running (infinite loop).                                                                               |
+```ld
+/* linker.ld */
+ENTRY(_start)
 
----
-
-### 🧪 How to Check the Output
-
-Since this is **bare-metal** (no OS), you can **observe the register value or hardware effect** by one of these:
-
-1. **QEMU with UART or MMIO device** (if configured):
-
-   * QEMU alone won’t show changes unless a custom device or model is connected to `0x10012000`.
-   * You’d need to simulate with a memory-mapped peripheral using a device-tree or custom board.
-
-2. **Use GDB to Inspect Memory at Runtime**:
-
-   ```bash
-   riscv32-unknown-elf-gdb hello_gpio.elf
-   (gdb) target sim
-   (gdb) break main
-   (gdb) run
-   (gdb) x/x 0x10012000   # Examine the value at the GPIO address
-   ```
-
-3. **On Real Hardware**:
-
-   * Use a logic analyzer, serial output, or an LED connected to the GPIO pin.
-
----
-
-### 🛠 Build Example
-
-```bash
-riscv64-unknown-elf-gcc -nostartfiles -march=rv32imc -mabi=ilp32 -T linker.ld -o hello_gpio.elf gpio.c
+SECTIONS
+{
+    . = 0x80000000;
+    .text : { *(.text*) }
+    .data : { *(.data*) }
+    .bss  : { *(.bss*)  }
+    /DISCARD/ : { *(.comment*) *(.note*) }
+}
 ```
 
-Make sure your `linker.ld` script maps the `.text` section correctly and does not overlap with MMIO region.
+* Places code at 0x80000000 (a typical bare-metal starting address).
+
+## 🛠️ Makefile
+
+```make
+# Makefile
+
+CROSS = riscv32-unknown-elf
+CFLAGS = -Wall -O0 -nostdlib -nostartfiles
+
+all: gpio_toggle.elf
+
+gpio_toggle.elf: gpio_toggle.c linker.ld
+	$(CROSS)-gcc $(CFLAGS) -T linker.ld -o $@ gpio_toggle.c
+
+clean:
+	rm -f *.elf
+```
+
+## ▶️ How to Build and Run (QEMU)
+
+```bash
+make
+qemu-system-riscv32 -nographic -machine sifive_e -kernel gpio_toggle.elf
+```
+
+You can use `spike` or `gdb` if targeting a different board.
+
+## 🧪 Output
+
+You won't see any print, but if the address is mapped to UART or LED, you’ll see the effect (e.g., LED toggles, UART fires).
 
 ---
+
+## 📘 Notes
+
+* The **`volatile`** keyword tells the compiler that the value at `*gpio` can change outside the program’s control — so don’t optimize it away.
+* This is essential for interacting with **memory-mapped I/O** like GPIOs, UARTs, and timers.
+
+---
+
+Let me know if you'd like the same structure with multiple toggles or with delay added!
+
 
 ### 📘 Notes
 
@@ -884,6 +915,7 @@ Make sure your `linker.ld` script maps the `.text` section correctly and does no
 </p></details>
 
 ## Outputs (task 10):
+![image](https://github.com/user-attachments/assets/5597702d-a57a-4adb-ac1b-06fb9c80715d)
 
 
 # 11) 🔗 Linker Script 101 — RISC-V Bare-Metal (RV32IMC)
