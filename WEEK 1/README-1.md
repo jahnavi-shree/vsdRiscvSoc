@@ -1186,7 +1186,7 @@ void trap_handler(void) {
     timer_flag = 1;
 }
 
-void main() {
+int main() {
     uart_init();
     uart_puts("Starting timer interrupt demo...\n");
 
@@ -1202,6 +1202,7 @@ void main() {
             timer_flag = 0;
             uart_puts("TIMER INTERRUPT\n");
         }
+	return 0;
     }
 }
 ```
@@ -1224,6 +1225,7 @@ void uart_puts(const char *s);
 ## ✅ `uart.c`
 
 ```c
+#include <stdint.h>
 #include "uart.h"
 #define UART_TX  (*(volatile uint32_t*)0x10000000)
 
@@ -1326,5 +1328,314 @@ TIMER INTERRUPT
 </p></details>
 
 ## Outputs (task 13):
+![image](https://github.com/user-attachments/assets/dab1e61e-b6f9-4143-9b61-45338b1cbfdc)
 
+
+# 14) 🔧 From C to Assembly (Function Prologue/Epilogue)
+<details>
+  <summary> <b> 🔍 Documentation </b> </summary>
+<p>
+
+Here's how you can present **Task 14: RV32IMAC vs RV32IMC and the ‘A’ Extension** in a **GitHub-style `README.md`** format.
+
+---
+
+## 🧠 Task 14: `rv32imac` vs `rv32imc` — What’s the “A”?
+
+### 📌 Question
+
+**“Explain the ‘A’ (atomic) extension in rv32imac. What instructions are added and why are they useful?”**
+
+---
+
+## ✅ Summary
+
+The **‘A’ extension** in RISC-V stands for **Atomic Instructions** and is crucial for writing **multi-threaded, lock-free programs**, including **operating system kernels**, device drivers, and concurrent embedded systems.
+
+---
+
+### 🆚 rv32imc vs rv32imac
+
+| Feature        | `rv32imc`   | `rv32imac`  |
+| -------------- | ----------- | ----------- |
+| Integer Core   | ✅ Yes (`I`) | ✅ Yes (`I`) |
+| Multiplication | ✅ Yes (`M`) | ✅ Yes (`M`) |
+| Compression    | ✅ Yes (`C`) | ✅ Yes (`C`) |
+| Atomics        | ❌ No        | ✅ Yes (`A`) |
+
+---
+
+## 📜 Atomic Instructions (`A` Extension)
+
+### ✅ Major Instructions
+
+| Instruction | Description                    |
+| ----------- | ------------------------------ |
+| `lr.w`      | Load-Reserved (for a word)     |
+| `sc.w`      | Store-Conditional (for a word) |
+| `amoadd.w`  | Atomic Add                     |
+| `amoswap.w` | Atomic Swap                    |
+| `amoxor.w`  | Atomic XOR                     |
+| `amoor.w`   | Atomic OR                      |
+| `amoand.w`  | Atomic AND                     |
+| `amomin.w`  | Atomic Min (signed)            |
+| `amomax.w`  | Atomic Max (signed)            |
+| `amominu.w` | Atomic Min (unsigned)          |
+| `amomaxu.w` | Atomic Max (unsigned)          |
+
+---
+
+## 🧩 Why Atomics Matter
+
+### 🔒 Use Case: Lock-Free Synchronization
+
+The `A` extension allows developers to:
+
+* Implement **mutexes**, **spinlocks**, **semaphores**
+* Safely access shared memory in **multi-core** systems
+* Use **lock-free data structures** like queues, stacks, etc.
+
+---
+
+## ⚙️ Example: Spinlock with `lr.w`/`sc.w`
+
+```c
+volatile int lock = 0;
+
+void lock_acquire() {
+    int tmp;
+    do {
+        asm volatile (
+            "lr.w %[val], (%[addr]);"
+            "bnez %[val], 1f;"
+            "li %[val], 1;"
+            "sc.w %[tmp], %[val], (%[addr]);"
+            "1:"
+            : [tmp]"=r"(tmp), [val]"+r"(tmp)
+            : [addr]"r"(&lock)
+            : "memory"
+        );
+    } while (tmp != 0);
+}
+
+void lock_release() {
+    lock = 0;
+}
+```
+
+---
+
+## 🧪 How to Compile with Atomics
+
+Make sure your toolchain supports the `A` extension:
+
+```bash
+riscv64-unknown-elf-gcc -march=rv32imac -mabi=ilp32 ...
+```
+
+> ✅ Use `-march=rv32imac` instead of `rv32imc`.
+
+---
+
+## 📚 References
+
+* [RISC-V Instruction Set Manual – Volume I](https://riscv.org/technical/specifications/)
+* [RISC-V Atomic Memory Operations (AMOs)](https://github.com/riscv/riscv-isa-manual)
+
+---
+
+ A working `.c` program to test atomic add or mutex in QEMU?
+Here's a **working C example** using **RISC-V atomic add (`amoadd.w`)** that runs on bare-metal and prints results using UART. It simulates **atomic increment** of a shared counter in a loop.
+
+---
+
+## 📁 Directory Structure
+
+```
+task14_atomic/
+├── Makefile
+├── main.c
+├── uart.c
+├── uart.h
+├── linker.ld
+├── crt0.S
+```
+
+---
+
+## ✅ `main.c` – Atomic Add Test (with UART)
+
+```c
+#include "uart.h"
+
+#define SHARED_COUNTER_ADDR  ((volatile int *)0x80001000)
+
+void atomic_increment(volatile int *addr) {
+    int tmp;
+    asm volatile (
+        "amoadd.w %0, x1, (%1)"
+        : "=r"(tmp)
+        : "r"(addr)
+        : "memory"
+    );
+}
+
+void main() {
+    volatile int *shared = SHARED_COUNTER_ADDR;
+
+    *shared = 0; // Init counter
+
+    uart_puts("Atomic Add Demo\n");
+
+    for (int i = 0; i < 5; i++) {
+        atomic_increment(shared);
+    }
+
+    uart_puts("Final Counter: ");
+    uart_print_int(*shared);
+    uart_puts("\n");
+
+    while (1);
+}
+```
+
+---
+
+## ✅ `uart.c` – Basic UART Output
+
+```c
+#include "uart.h"
+#define UART_ADDR ((volatile unsigned char *)0x10000000)
+
+void uart_putc(char c) {
+    *UART_ADDR = c;
+}
+
+void uart_puts(const char *s) {
+    while (*s) uart_putc(*s++);
+}
+
+void uart_print_int(int num) {
+    char buf[10];
+    int i = 0;
+
+    if (num == 0) {
+        uart_putc('0');
+        return;
+    }
+
+    while (num > 0 && i < 10) {
+        buf[i++] = '0' + (num % 10);
+        num /= 10;
+    }
+
+    while (i--) {
+        uart_putc(buf[i]);
+    }
+}
+```
+
+---
+
+## ✅ `uart.h`
+
+```c
+#ifndef UART_H
+#define UART_H
+
+void uart_putc(char c);
+void uart_puts(const char *s);
+void uart_print_int(int num);
+
+#endif
+```
+
+---
+
+## ✅ `crt0.S` – Minimal Startup
+
+```asm
+.section .text
+.global _start
+
+_start:
+    la sp, stack_top
+    call main
+    j .
+
+.section .bss
+.space 1024
+stack_top:
+```
+
+---
+
+## ✅ `linker.ld`
+
+```ld
+ENTRY(_start)
+
+MEMORY {
+    FLASH (rx)  : ORIGIN = 0x00000000, LENGTH = 512K
+    RAM   (rwx) : ORIGIN = 0x80000000, LENGTH = 512K
+}
+
+SECTIONS {
+    .text : {
+        *(.text*)
+    } > FLASH
+
+    .data : {
+        *(.data*)
+        *(.rodata*)
+    } > RAM
+
+    .bss : {
+        *(.bss*)
+        *(COMMON)
+    } > RAM
+}
+```
+
+---
+
+## ✅ `Makefile`
+
+```makefile
+CC = riscv64-unknown-elf-gcc
+CFLAGS = -march=rv32imac -mabi=ilp32 -Wall -O0 -nostdlib
+OBJDUMP = riscv64-unknown-elf-objdump
+
+all: atomic.elf
+
+atomic.elf: main.c uart.c crt0.S linker.ld
+	$(CC) $(CFLAGS) -T linker.ld $^ -o $@
+	$(OBJDUMP) -d atomic.elf > atomic.dump
+
+run: atomic.elf
+	qemu-system-riscv32 -nographic -machine virt -bios none -kernel atomic.elf
+
+clean:
+	rm -f *.elf *.dump
+```
+
+---
+
+## ▶️ Run with QEMU
+
+```bash
+make run
+```
+
+### 🖥️ Output
+
+```
+Atomic Add Demo
+Final Counter: 5
+```
+
+
+</p></details>
+
+## Outputs (task 14):
 
