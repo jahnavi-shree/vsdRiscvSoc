@@ -1135,25 +1135,196 @@ SECTIONS {
 }
 ```
 
----
-
-## 🛠️ `Makefile`
-
-```makefile
-CC=riscv64-unknown-elf-gcc
-CFLAGS=-march=rv32imc -mabi=ilp32 -nostartfiles
-
-all: task12.elf
-
-task12.elf: crt0.S main.c link.ld
-	$(CC) $(CFLAGS) -Tlink.ld crt0.S main.c -o task12.elf
-
-clean:
-	rm -f *.elf *.o
-```
 </p></details>
 
 ## Outputs (task 12):
 ![image](https://github.com/user-attachments/assets/e75d8cd1-b099-4ded-8bb3-360806234e5e)
+
+# 13) Machine Timer Interrupt
+<details>
+  <summary> <b> 🔍 Documentation </b> </summary>
+<p>
+
+## 📁 Project Structure (Minimal GitHub-like Layout)
+
+```
+task13/
+├── main.c
+├── interrupt.c
+├── crt0.S
+├── link.ld
+└── Makefile
+```
+
+---
+
+## 🧠 What This Demo Does
+
+* Initializes **machine timer interrupt**
+* Sets `mtimecmp` to fire after delay
+* Enables interrupts via `mie` and `mstatus`
+* Blinks a flag in the interrupt handler (prints `"TIMER INTERRUPT"` repeatedly using UART)
+
+---
+
+## ✅ `main.c` – Enable Timer Interrupt
+
+```c
+#include <stdint.h>
+#include "uart.h"
+
+#define MTIME       (*(volatile uint64_t *)(0x0200bff8))
+#define MTIMECMP    (*(volatile uint64_t *)(0x02004000))
+#define TIMER_DELAY 1000000UL
+
+void trap_handler(void) __attribute__((interrupt));
+
+volatile int timer_flag = 0;
+
+void trap_handler(void) {
+    MTIMECMP = MTIME + TIMER_DELAY;
+    timer_flag = 1;
+}
+
+void main() {
+    uart_init();
+    uart_puts("Starting timer interrupt demo...\n");
+
+    // Schedule timer
+    MTIMECMP = MTIME + TIMER_DELAY;
+
+    // Enable machine-timer interrupt
+    asm volatile("csrs mie, %0" :: "r"(1 << 7)); // MTIE
+    asm volatile("csrs mstatus, %0" :: "r"(1 << 3)); // MIE
+
+    while (1) {
+        if (timer_flag) {
+            timer_flag = 0;
+            uart_puts("TIMER INTERRUPT\n");
+        }
+    }
+}
+```
+
+---
+
+## ✅ `uart.h` (Add to same folder)
+
+```c
+#ifndef UART_H
+#define UART_H
+
+void uart_init();
+void uart_putc(char c);
+void uart_puts(const char *s);
+
+#endif
+```
+
+## ✅ `uart.c`
+
+```c
+#include "uart.h"
+#define UART_TX  (*(volatile uint32_t*)0x10000000)
+
+void uart_init() {
+    // No init needed for simple MMIO
+}
+
+void uart_putc(char c) {
+    UART_TX = c;
+}
+
+void uart_puts(const char *s) {
+    while (*s) uart_putc(*s++);
+}
+```
+
+---
+
+## ✅ `crt0.S`
+
+```asm
+.section .text
+.global _start
+_start:
+    la sp, _stack_top
+    call main
+    j .
+```
+
+---
+
+## ✅ `link.ld`
+
+```ld
+ENTRY(_start)
+
+MEMORY {
+  RAM (rwx) : ORIGIN = 0x80000000, LENGTH = 64K
+}
+
+SECTIONS {
+  .text : {
+    *(.text*)
+  } > RAM
+
+  .bss : {
+    __bss_start = .;
+    *(.bss*)
+    __bss_end = .;
+  } > RAM
+
+  .data : {
+    *(.data*)
+  } > RAM
+
+  .stack : {
+    . = ALIGN(4);
+    _stack_top = . + 0x1000;
+  } > RAM
+}
+```
+
+---
+
+## ✅ `Makefile`
+
+```makefile
+CC = riscv64-unknown-elf-gcc
+CFLAGS = -march=rv32imc -mabi=ilp32 -nostartfiles -Wall
+
+all: task13.elf
+
+task13.elf: crt0.S main.c uart.c
+	$(CC) $(CFLAGS) -Tlink.ld $^ -o $@
+
+clean:
+	rm -f *.elf *.o
+```
+
+---
+
+## ▶️ To Build and Run
+
+```bash
+make
+qemu-system-riscv32 -nographic -machine sifive_e -kernel task13.elf
+```
+
+You should see output like:
+
+```
+Starting timer interrupt demo...
+TIMER INTERRUPT
+TIMER INTERRUPT
+TIMER INTERRUPT
+...
+```
+
+
+</p></details>
+
+## Outputs (task 13):
 
 
