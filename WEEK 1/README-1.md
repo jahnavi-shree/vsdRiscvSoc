@@ -906,7 +906,7 @@ This project demonstrates how to use a minimal **linker script** to place differ
 
 ---
 
-## 📄 Minimal Linker Script (`link.ld`)
+## 📄 Minimal Linker Script (`linker.ld`)
 
 ```ld
 ENTRY(_start)
@@ -967,5 +967,189 @@ qemu-system-riscv32 -nographic -machine virt -kernel prog.elf
 </p></details>
 
 ## Outputs (task 11):
+![image](https://github.com/user-attachments/assets/14c4cfde-ba0a-4d47-a964-755aefcd010a)
+
+
+# 12) 🔧  Bare-Metal RISC-V Startup (`crt0.S`) with UART
+<details>
+  <summary> <b> 🔍 Documentation </b> </summary>
+<p>
+## 📁 Project Structure
+
+```
+task12_startup_uart/
+├── crt0.S
+├── link.ld
+├── task12.c
+├── Makefile
+└── README.md
+
+# Task 12 — Bare-Metal RISC-V Startup (`crt0.S`) with UART
+
+This example demonstrates how to use a minimal `crt0.S` startup file in a bare-metal RISC-V program. It:
+- Sets up the stack
+- Zeroes the `.bss` section
+- Calls `main()`
+- Loops forever after `main()` returns
+
+UART output is used to verify correct execution.
+
+## 🔧 Files
+- `crt0.S` — Startup assembly
+- `task12.c` — Simple UART test using `.text`, `.data`, and `.bss`
+- `link.ld` — Minimal linker script for RV32IMC
+- `Makefile` — Build automation
+
+## ⚙️ Build & Run
+
+```bash
+make
+qemu-system-riscv32 -nographic -machine virt -kernel task12.elf -bios none
+````
+
+Expected Output:
+
+```
+Hello from crt0!
+Counter: 1
+```
+
+````
+
+---
+
+## 🧠 `crt0.S`
+
+```asm
+# crt0.S — Minimal RISC-V startup code
+
+.section .text
+.global _start
+_start:
+    # Set up the stack pointer
+    la sp, _stack_top
+
+    # Zero out the .bss section
+    la a0, __bss_start
+    la a1, __bss_end
+1:
+    bge a0, a1, 2f
+    sw zero, 0(a0)
+    addi a0, a0, 4
+    j 1b
+2:
+
+    # Call main
+    call main
+
+    # Infinite loop after main returns
+3:  j 3b
+
+# Define stack size and location
+.section .bss
+.space 1024  # 1 KB stack
+.global _stack_top
+_stack_top:
+````
+
+---
+
+## 💻 `task12.c`
+
+```c
+// task12.c — Test UART + crt0 startup
+
+#include <stdint.h>
+
+#define UART_BASE 0x10000000
+#define UART_TXDATA (volatile uint32_t *)(UART_BASE + 0x00)
+
+// .data
+volatile int counter = 1;
+
+// .bss
+volatile int uninitialized_var;
+
+void uart_putc(char c) {
+    while (*UART_TXDATA & 0x80000000);
+    *UART_TXDATA = c;
+}
+
+void uart_print(const char *s) {
+    while (*s) uart_putc(*s++);
+}
+
+void uart_print_num(int n) {
+    if (n == 0) { uart_putc('0'); return; }
+
+    char buf[10];
+    int i = 0;
+    while (n > 0) {
+        buf[i++] = '0' + (n % 10);
+        n /= 10;
+    }
+    while (i--) uart_putc(buf[i]);
+}
+
+int main() {
+    uart_print("Hello from crt0!\n");
+    uart_print("Counter: ");
+    uart_print_num(counter);
+    uart_putc('\n');
+    return 0;
+}
+```
+
+---
+
+## 📜 `link.ld`
+
+```ld
+ENTRY(_start)
+
+SECTIONS {
+  . = 0x00000000;
+
+  .text : {
+    *(.text*)
+    *(.rodata*)
+  }
+
+  .data : AT(ADDR(.text) + SIZEOF(.text)) {
+    __data_start = .;
+    *(.data*)
+    __data_end = .;
+  }
+
+  .bss : {
+    __bss_start = .;
+    *(.bss*)
+    *(COMMON)
+    __bss_end = .;
+  }
+}
+```
+
+---
+
+## 🛠️ `Makefile`
+
+```makefile
+CC=riscv64-unknown-elf-gcc
+CFLAGS=-march=rv32imc -mabi=ilp32 -nostartfiles
+
+all: task12.elf
+
+task12.elf: crt0.S main.c link.ld
+	$(CC) $(CFLAGS) -Tlink.ld crt0.S main.c -o task12.elf
+
+clean:
+	rm -f *.elf *.o
+```
+</p></details>
+
+## Outputs (task 12):
+
+
 
 
