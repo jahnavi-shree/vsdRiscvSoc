@@ -2265,12 +2265,102 @@ Hello from RISC-V UART!
 ![image](https://github.com/user-attachments/assets/608b8bef-d4d4-4ad3-8003-61e1f959a099)
 
 
-# 17) 
+# 17) ENDIANNESS TEST
 <details>
   <summary> <b> 🔍 Documentation </b> </summary>
 <p>
+### Endianness (Very Briefly):
+
+**Endianness** is the order in which bytes are stored in memory for multi-byte data (like `int`, `float`, etc.).
+
+There are two main types:
+
+* **Little-endian**:
+  Least significant byte is stored **first** (at the lowest memory address).
+  Example: `0x12345678` stored as → `78 56 34 12`
+
+* **Big-endian**:
+  Most significant byte is stored **first**.
+  Example: `0x12345678` stored as → `12 34 56 78`
+
+It matters in low-level programming, hardware communication, file formats, and networking.
 
 
+Here’s a single terminal command sequence that will:
+
+1. Create the C file with the union test code,
+2. Compile it with `gcc`,
+3. Run the resulting executable,
+
+all in one go.
+
+---
+
+Open your terminal and run this command (copy-paste all together):
+
+```bash
+cat > endian_test.c << 'EOF'
+#include <stdio.h>
+#include <stdint.h>
+
+int main() {
+    union {
+        uint32_t i;
+        uint8_t bytes[4];
+    } test;
+
+    test.i = 0x01020304;
+
+    printf("Stored 0x01020304 as bytes: ");
+    for (int j = 0; j < 4; j++) {
+        printf("%02x ", test.bytes[j]);
+    }
+    printf("\n");
+
+    if (test.bytes[0] == 0x04 && test.bytes[1] == 0x03 &&
+        test.bytes[2] == 0x02 && test.bytes[3] == 0x01) {
+        printf("System is Little-Endian.\n");
+    } else if (test.bytes[0] == 0x01 && test.bytes[1] == 0x02 &&
+               test.bytes[2] == 0x03 && test.bytes[3] == 0x04) {
+        printf("System is Big-Endian.\n");
+    } else {
+        printf("Unknown Endianness.\n");
+    }
+
+    return 0;
+}
+EOF
+gcc endian_test.c -o endian_test && ./endian_test
+```
+
+---
+
+### What this does:
+
+* `cat > endian_test.c << 'EOF' ... EOF` creates the C source file `endian_test.c` with the given code.
+* `gcc endian_test.c -o endian_test` compiles it into executable `endian_test`.
+* `./endian_test` runs the executable and prints the output.
+
+---
+
+Run this in your terminal and you will see the byte order and the endianness detected!
+---
+
+For this particular test — checking endianness with the C union code — you **do not need to produce an ELF file explicitly** yourself. Here's why:
+
+* When you run `gcc endian_test.c -o endian_test`, GCC **automatically compiles and links** your C code into an executable file (which **is** an ELF binary on Linux systems).
+* That executable (`endian_test`) is what you run with `./endian_test`.
+* The ELF format is just the standard executable format on Linux; you don’t have to manage it manually for simple C programs.
+
+---
+
+### Summary:
+
+* The command compiles your C source code into an ELF executable named `endian_test`.
+* You run this ELF executable directly.
+* You only need to explicitly deal with `.elf` files if you’re doing low-level embedded or bare-metal development (like for RISC-V without an OS).
+
+---
 
 </p></details>
 
