@@ -1331,16 +1331,10 @@ TIMER INTERRUPT
 ![image](https://github.com/user-attachments/assets/dab1e61e-b6f9-4143-9b61-45338b1cbfdc)
 
 
-# 14) 🔧 From C to Assembly (Function Prologue/Epilogue)
+# 14) 🧠 `rv32imac` vs `rv32imc` — What’s the “A”?
 <details>
   <summary> <b> 🔍 Documentation </b> </summary>
 <p>
-
-Here's how you can present **Task 14: RV32IMAC vs RV32IMC and the ‘A’ Extension** in a **GitHub-style `README.md`** format.
-
----
-
-## 🧠 Task 14: `rv32imac` vs `rv32imc` — What’s the “A”?
 
 ### 📌 Question
 
@@ -1435,14 +1429,7 @@ riscv64-unknown-elf-gcc -march=rv32imac -mabi=ilp32 ...
 
 > ✅ Use `-march=rv32imac` instead of `rv32imc`.
 
----
 
-## 📚 References
-
-* [RISC-V Instruction Set Manual – Volume I](https://riscv.org/technical/specifications/)
-* [RISC-V Atomic Memory Operations (AMOs)](https://github.com/riscv/riscv-isa-manual)
-
----
 
  A working `.c` program to test atomic add or mutex in QEMU?
 Here's a **working C example** using **RISC-V atomic add (`amoadd.w`)** that runs on bare-metal and prints results using UART. It simulates **atomic increment** of a shared counter in a loop.
@@ -1627,15 +1614,668 @@ clean:
 make run
 ```
 
-### 🖥️ Output
+Here's a **complete set of terminal commands** to **create all required files** and compile + run your **RISC-V timer interrupt demo** using `qemu-system-riscv32` with the `virt` machine.
 
+
+---
+
+## ✅ Step-by-Step Terminal Commands
+
+```bash
+# Step 1: Create and enter working folder
+mkdir task13 && cd task13
 ```
-Atomic Add Demo
-Final Counter: 5
+
+---
+
+### 📄 Create `main.c`
+
+```bash
+cat > main.c << 'EOF'
+#include <stdint.h>
+#include "uart.h"
+
+#define MTIME       (*(volatile uint64_t *)(0x0200bff8))
+#define MTIMECMP    (*(volatile uint64_t *)(0x02004000))
+#define TIMER_DELAY 1000000UL
+
+void trap_handler(void) __attribute__((interrupt));
+
+volatile int timer_flag = 0;
+
+void trap_handler(void) {
+    uart_puts("TRAP!\n");
+    MTIMECMP = MTIME + TIMER_DELAY;
+    timer_flag = 1;
+}
+
+void main() {
+    extern void trap_handler();
+    asm volatile("csrw mtvec, %0" :: "r"(trap_handler));
+
+    uart_init();
+    uart_puts("Starting timer interrupt demo...\n");
+
+    MTIMECMP = MTIME + TIMER_DELAY;
+
+    asm volatile("csrs mie, %0" :: "r"(1 << 7)); // Enable MTIE
+    asm volatile("csrs mstatus, %0" :: "r"(1 << 3)); // Enable global MIE
+
+    while (1) {
+        if (timer_flag) {
+            timer_flag = 0;
+            uart_puts("TIMER INTERRUPT\n");
+        }
+    }
+}
+EOF
+```
+
+---
+
+### 📄 Create `uart.c`
+
+```bash
+cat > uart.c << 'EOF'
+#include "uart.h"
+#define UART_TX  (*(volatile uint32_t*)0x10000000)
+
+void uart_init() {
+    // No init required for simple MMIO UART
+}
+
+void uart_putc(char c) {
+    UART_TX = c;
+}
+
+void uart_puts(const char *s) {
+    while (*s) uart_putc(*s++);
+}
+EOF
+```
+
+---
+
+### 📄 Create `uart.h`
+
+```bash
+cat > uart.h << 'EOF'
+#ifndef UART_H
+#define UART_H
+
+void uart_init();
+void uart_putc(char c);
+void uart_puts(const char *s);
+
+#endif
+EOF
+```
+
+---
+
+### 📄 Create `crt0.S`
+
+```bash
+cat > crt0.S << 'EOF'
+.section .text
+.global _start
+_start:
+    la sp, _stack_top
+    call main
+    j .
+EOF
+```
+
+---
+
+### 📄 Create `link.ld`
+
+```bash
+cat > link.ld << 'EOF'
+ENTRY(_start)
+
+MEMORY {
+  RAM (rwx) : ORIGIN = 0x80000000, LENGTH = 64K
+}
+
+SECTIONS {
+  .text : {
+    *(.text*)
+  } > RAM
+
+  .bss : {
+    __bss_start = .;
+    *(.bss*)
+    __bss_end = .;
+  } > RAM
+
+  .data : {
+    *(.data*)
+  } > RAM
+
+  .stack : {
+    . = ALIGN(4);
+    _stack_top = . + 0x1000;
+  } > RAM
+}
+EOF
+```
+
+---
+
+### 📄 Create `Makefile`
+
+```bash
+cat > Makefile << 'EOF'
+CC = riscv64-unknown-elf-gcc
+CFLAGS = -march=rv32imc -mabi=ilp32 -nostartfiles -Wall
+
+all: task13.elf
+
+task13.elf: crt0.S main.c uart.c
+	$(CC) $(CFLAGS) -Tlink.ld $^ -o $@
+
+clean:
+	rm -f *.elf *.o
+EOF
+```
+
+---
+
+## 🛠️ Build the Project
+
+```bash
+make
+```
+
+✅ You should see `task13.elf` generated.
+
+---
+
+## ▶️ Run with QEMU
+
+```bash
+qemu-system-riscv32 -machine virt -nographic -bios none -kernel task13.elf
+```
+
+---
+
+### ✅ Expected Output:
+
+```text
+Starting timer interrupt demo...
+TRAP!
+TIMER INTERRUPT
+TRAP!
+TIMER INTERRUPT
+...
 ```
 
 
 </p></details>
 
 ## Outputs (task 14):
+![image](https://github.com/user-attachments/assets/7849d649-5723-4836-a063-b73503a45b09)
+
+
+# 15) 🧪 Atomic Test Program — Spinlock with LR/SC
+  <summary> <b> 🔍 Documentation </b> </summary>
+<p>
+
+Here’s a **minimal bare-metal C example** that demonstrates a **spinlock using RV32 `lr.w`/`sc.w`** instructions to implement mutual exclusion between two pseudo-threads. This is great for educational use on platforms like QEMU or Spike.
+
+---
+
+### 📁 File: `atomic_test.c`
+
+```c
+#include <stdint.h>
+#include <stdbool.h>
+#include "uart.h"
+
+volatile int lock = 0;
+
+void lock_acquire(volatile int *lock) {
+    int tmp;
+    do {
+        asm volatile (
+            "lr.w %[tmp], %[addr]\n"
+            "bnez %[tmp], 1f\n"       // if lock != 0, jump to fail
+            "li %[tmp], 1\n"
+            "sc.w %[tmp], %[tmp], %[addr]\n" // try to store 1 to lock
+            "1:"
+            : [tmp] "=&r"(tmp), [addr] "+A" (*lock)
+            :
+            : "memory"
+        );
+    } while (tmp != 0);
+}
+
+void lock_release(volatile int *lock) {
+    *lock = 0;
+}
+
+void thread_A() {
+    uart_puts("Thread A trying to acquire lock...\n");
+    lock_acquire(&lock);
+    uart_puts("Thread A acquired lock!\n");
+
+    for (volatile int i = 0; i < 100000; i++); // simulate work
+
+    uart_puts("Thread A releasing lock\n");
+    lock_release(&lock);
+}
+
+void thread_B() {
+    uart_puts("Thread B trying to acquire lock...\n");
+    lock_acquire(&lock);
+    uart_puts("Thread B acquired lock!\n");
+
+    for (volatile int i = 0; i < 100000; i++); // simulate work
+
+    uart_puts("Thread B releasing lock\n");
+    lock_release(&lock);
+}
+
+int main() {
+    uart_init();
+
+    thread_A();
+    thread_B();
+
+    while (1);  // Infinite loop to halt
+    return 0;
+}
+```
+
+---
+
+## 📁 File: `uart.h`
+
+```c
+#ifndef UART_H
+#define UART_H
+
+void uart_init();
+void uart_putc(char c);
+void uart_puts(const char *s);
+
+#endif
+```
+
+---
+
+## 📁 File: `uart.c`
+
+```c
+#include <stdint.h>
+#include "uart.h"
+
+#define UART_TX (*(volatile uint32_t*)0x10000000)
+
+void uart_init() {}
+
+void uart_putc(char c) {
+    UART_TX = c;
+}
+
+void uart_puts(const char *s) {
+    while (*s) uart_putc(*s++);
+}
+```
+
+---
+
+## 🧾 Notes
+
+* This is **bare-metal**, no threads — just sequential pseudo-threads for mutex demo.
+* Use of `lr.w` (load-reserved) and `sc.w` (store-conditional) implements atomic lock.
+* The loop in `lock_acquire` retries until the lock is acquired.
+
+---
+
+## 🛠️ Build and Run (if Makefile exists)
+
+### 🔧 In Terminal:
+
+```bash
+make clean
+make
+```
+
+Then:
+
+```bash
+qemu-system-riscv32 -nographic -machine virt -bios none -kernel atomic_test.elf
+```
+
+---
+
+## ✅ Expected Output
+
+```text
+Thread A trying to acquire lock...
+Thread A acquired lock!
+Thread A releasing lock
+Thread B trying to acquire lock...
+Thread B acquired lock!
+Thread B releasing lock
+```
+Sure! Here's a **single terminal command** that will create **all the required files** for **Task 15: Atomic Test Program** using `lr.w` / `sc.w` instructions.
+
+---
+
+### ✅ Terminal Command to Create All Files
+
+```bash
+mkdir task15_atomic && cd task15_atomic && \
+echo '#ifndef UART_H
+#define UART_H
+void uart_init();
+void uart_putc(char c);
+void uart_puts(const char *s);
+#endif' > uart.h && \
+echo '#include <stdint.h>
+#include "uart.h"
+#define UART_TX (*(volatile uint32_t*)0x10000000)
+void uart_init() {}
+void uart_putc(char c) { UART_TX = c; }
+void uart_puts(const char *s) { while (*s) uart_putc(*s++); }' > uart.c && \
+echo '#include <stdint.h>
+#include "uart.h"
+
+volatile int lock = 0;
+
+void lock_acquire(volatile int *lock) {
+    int tmp;
+    do {
+        asm volatile (
+            "lr.w %[tmp], %[addr]\n"
+            "bnez %[tmp], 1f\n"
+            "li %[tmp], 1\n"
+            "sc.w %[tmp], %[tmp], %[addr]\n"
+            "1:"
+            : [tmp] "=&r"(tmp), [addr] "+A" (*lock)
+            :
+            : "memory"
+        );
+    } while (tmp != 0);
+}
+
+void lock_release(volatile int *lock) {
+    *lock = 0;
+}
+
+void thread_A() {
+    uart_puts("Thread A trying to acquire lock...\n");
+    lock_acquire(&lock);
+    uart_puts("Thread A acquired lock!\n");
+    for (volatile int i = 0; i < 100000; i++);
+    uart_puts("Thread A releasing lock\n");
+    lock_release(&lock);
+}
+
+void thread_B() {
+    uart_puts("Thread B trying to acquire lock...\n");
+    lock_acquire(&lock);
+    uart_puts("Thread B acquired lock!\n");
+    for (volatile int i = 0; i < 100000; i++);
+    uart_puts("Thread B releasing lock\n");
+    lock_release(&lock);
+}
+
+int main() {
+    uart_init();
+    thread_A();
+    thread_B();
+    while (1);
+    return 0;
+}' > atomic_test.c && \
+echo 'SECTIONS {
+  . = 0x80000000;
+
+  .text : {
+    *(.init)
+    *(.text*)
+  }
+
+  .rodata : { *(.rodata*) }
+
+  .data : { *(.data*) }
+
+  .bss : {
+    _bss_start = .;
+    *(.bss*)
+    *(COMMON)
+    _bss_end = .;
+  }
+
+  . = 0x80004000;
+  _stack_top = .;
+}
+' > link.ld && \
+echo '.section .init
+.globl _start
+_start:
+    la  sp, _stack_top       # Set up stack pointer
+
+    # Zero out .bss section
+    la   a0, _bss_start
+    la   a1, _bss_end
+    li   a2, 0
+bss_clear:
+    bge  a0, a1, bss_done
+    sw   a2, 0(a0)
+    addi a0, a0, 4
+    j    bss_clear
+bss_done:
+
+    call main                # Call main()
+
+    # Loop forever after main returns
+hang:
+    j hang
+' > crt0.S && \
+echo 'RISCV_GCC=riscv64-unknown-elf-gcc
+CFLAGS=-march=rv32imac -mabi=ilp32 -nostartfiles -Wall
+
+all:
+	$(RISCV_GCC) $(CFLAGS) -Tlink.ld crt0.S uart.c atomic_test.c -o atomic_test.elf
+
+clean:
+	rm -f *.elf *.o' > Makefile
+```
+
+---
+
+### 📦 Files Created:
+
+* `atomic_test.c` – main program with pseudo-thread mutex logic
+* `uart.c`, `uart.h` – minimal UART functions
+* `crt0.S` – startup file
+* `link.ld` – linker script
+* `Makefile` – to compile the ELF
+
+---
+
+### 🔧 Build It:
+
+```bash
+make
+```
+
+### ▶️ Run It (QEMU):
+
+```bash
+qemu-system-riscv32 -nographic -machine virt -bios none -kernel atomic_test.elf
+```
+
+
+
+</p></details>
+
+## Outputs (task 15):
+![image](https://github.com/user-attachments/assets/e457bd9a-280e-4300-a0e0-eea5e2fc211a)
+
+
+# 16) ✅ Using `printf` via UART (No OS)
+
+<details>
+  <summary> <b> 🔍 Documentation </b> </summary>
+<p>
+
+Here's a complete and minimal solution for **using `printf` with Newlib** in a **bare-metal RISC-V** setup — no OS required.
+
+---
+
+### 🔧 Step 1: Memory-Mapped UART Address
+
+Let’s assume:
+
+```c
+#define UART_TX (*(volatile unsigned char*)0x10000000)
+```
+
+---
+
+### 📄 `syscalls.c` – Retarget `_write()`
+
+```c
+#include <sys/stat.h>
+#include <stdint.h>
+
+#define UART_TX (*(volatile uint8_t*)0x10000000)
+
+int _write(int fd, const char *buf, int len) {
+    for (int i = 0; i < len; i++) {
+        UART_TX = buf[i];  // Write byte to UART
+    }
+    return len;
+}
+
+// Minimal stubs to satisfy linker
+int _close(int fd) { return -1; }
+int _fstat(int fd, struct stat *st) { st->st_mode = S_IFCHR; return 0; }
+int _lseek(int fd, int ptr, int dir) { return 0; }
+int _read(int fd, char *buf, int len) { return 0; }
+int _isatty(int fd) { return 1; }
+void *_sbrk(int incr) { return (void *)-1; }
+```
+
+---
+
+### 📄 `main.c` – Use `printf`
+
+```c
+#include <stdio.h>
+
+int main() {
+    printf("Hello from RISC-V UART!\n");
+}
+```
+
+---
+
+### 📄 `crt0.S` – Startup (recap)
+
+```assembly
+.section .init
+.globl _start
+_start:
+    la  sp, _stack_top
+
+    la   a0, _bss_start
+    la   a1, _bss_end
+    li   a2, 0
+clear_bss:
+    bge  a0, a1, done_bss
+    sw   a2, 0(a0)
+    addi a0, a0, 4
+    j    clear_bss
+done_bss:
+
+    call main
+1:  j 1b
+```
+
+---
+
+### 📄 `link.ld` – Linker Script
+
+```ld
+SECTIONS {
+  . = 0x80000000;
+
+  .text : {
+    *(.init)
+    *(.text*)
+  }
+
+  .rodata : { *(.rodata*) }
+
+  .data : { *(.data*) }
+
+  .bss : {
+    _bss_start = .;
+    *(.bss*)
+    *(COMMON)
+    _bss_end = .;
+  }
+
+  . = 0x80004000;
+  _stack_top = .;
+}
+```
+
+---
+
+### 🛠️ `Makefile`
+
+```make
+CFLAGS = -march=rv32imac -mabi=ilp32 -Wall -nostartfiles
+LDSCRIPT = link.ld
+
+all: printf_uart.elf
+
+printf_uart.elf: main.c syscalls.c crt0.S
+	@riscv64-unknown-elf-gcc $(CFLAGS) -T $(LDSCRIPT) $^ -o $@
+
+clean:
+	@rm -f *.elf
+
+```
+
+---
+
+### 🧪 Run with QEMU
+
+```bash
+qemu-system-riscv32 -nographic -machine virt -bios none -kernel printf_uart.elf
+```
+
+You should see:
+
+```
+Hello from RISC-V UART!
+```
+
+</p></details>
+
+## Outputs (task 16):
+![image](https://github.com/user-attachments/assets/608b8bef-d4d4-4ad3-8003-61e1f959a099)
+
+
+# 17) 
+<details>
+  <summary> <b> 🔍 Documentation </b> </summary>
+<p>
+
+
+
+</p></details>
+
+## Outputs (task 17):
+![image](https://github.com/user-attachments/assets/4cc910a8-ad33-43f5-bd8f-6b8bd6a96117)
+![image](https://github.com/user-attachments/assets/5c3eaec2-cc4d-4346-ac9d-d179a282dd06)
+
 
